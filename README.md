@@ -441,9 +441,3 @@ Key Python libraries used:
 Everything required is listed in `requirements.txt`.
 
 ---
-
-## Notes for the examiner
-
-- The web application is intentionally minimal and aligned with the scripts: it exposes data overview, model exploration, and prediction, and it delegates heavy diagnostics and comparisons to an external Colab notebook.
-- The main working models for the dashboard are the Stan‑based hierarchical normal model (`fit_hierarchical.nc`) and the Python‑only approximate hierarchical regression (`fit_hierarchical_regression.nc`); additional Stan models are clearly marked as optional.
-- The project demonstrates the complete Bayesian workflow: prior specification, hierarchical modeling, MCMC fitting (in Colab or locally if possible), diagnostics, LOO‑CV comparison, and interpretation, with a small but functional interactive front end to make the results easier to explore.
