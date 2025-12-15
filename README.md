@@ -11,7 +11,7 @@ The goal is to demonstrate a clear end‑to‑end Bayesian workflow:
 The repository is intentionally kept simple and focused for submission: only the core models and features that are actually used by the app and the write‑up are kept.
 
 ---
- 
+
 ## High‑level summary
 
 - **Data**: Daily and hourly bike rental counts from `data/day.csv` and `data/hour.csv`.
@@ -247,57 +247,62 @@ The web app is a lightweight Flask application (`app.py`) with a single HTML tem
 
 ### Prediction algorithms and formulae
 
-The web app supports multiple Bayesian ensemble prediction algorithms. For each algorithm, let \(K\) denote the number of available models, and let \(p_k(y^* | y)\) be the posterior predictive distribution for model \(k\) given new covariates \(x^*\).
+The web app supports multiple Bayesian ensemble prediction algorithms. For each algorithm, let K denote the number of available models, and let p_k(y* | y) be the posterior predictive distribution for model k given new covariates x*.
 
 #### 1. Bayesian Model Averaging (LOO-weighted) — `bma_loo`
 
 **Weight computation:**
-\[
-w_k = \frac{\exp(-\tfrac{1}{2}(\text{LOOIC}_k - \min_j \text{LOOIC}_j))}{\sum_{j=1}^{K} \exp(-\tfrac{1}{2}(\text{LOOIC}_j - \min_j \text{LOOIC}_j))}
-\]
 
-where \(\text{LOOIC}_k\) is the Leave-One-Out Information Criterion for model \(k\):
-\[
-\text{LOOIC}_k = -2 \sum_{i=1}^{n} \log p_k(y_i | y_{-i})
-\]
+```
+w_k = exp(-0.5 * (LOOIC_k - min_j LOOIC_j)) / sum_j exp(-0.5 * (LOOIC_j - min_j LOOIC_j))
+```
+
+where LOOIC_k is the Leave-One-Out Information Criterion for model k:
+
+```
+LOOIC_k = -2 * sum_i log p_k(y_i | y_{-i})
+```
 
 **Ensemble prediction:**
-\[
-p(y^* | y) = \sum_{k=1}^{K} w_k \cdot p_k(y^* | y)
-\]
+
+```
+p(y* | y) = sum_k w_k * p_k(y* | y)
+```
 
 This is the default algorithm and is currently implemented for all algorithm selections.
 
 #### 2. Bayesian Model Averaging (Equal weights) — `bma_equal`
 
 **Weight computation:**
-\[
-w_k = \frac{1}{K} \quad \text{for all } k
-\]
+
+```
+w_k = 1/K  for all k
+```
 
 **Ensemble prediction:**
-\[
-p(y^* | y) = \frac{1}{K} \sum_{k=1}^{K} p_k(y^* | y)
-\]
+
+```
+p(y* | y) = (1/K) * sum_k p_k(y* | y)
+```
 
 This gives equal weight to all models regardless of their LOOIC values.
 
 #### 3. Best Model Only (LOO-selected) — `bma_best`
 
 **Weight computation:**
-\[
-w_k = \begin{cases}
-1 & \text{if } k = \arg\min_j \text{LOOIC}_j \\
-0 & \text{otherwise}
-\end{cases}
-\]
+
+```
+w_k = 1  if k = argmin_j LOOIC_j
+w_k = 0  otherwise
+```
 
 **Ensemble prediction:**
-\[
-p(y^* | y) = p_{k^*}(y^* | y)
-\]
 
-where \(k^* = \arg\min_k \text{LOOIC}_k\) is the model with the lowest LOOIC.
+```
+p(y* | y) = p_k*(y* | y)
+```
+
+where k* = argmin_k LOOIC_k is the model with the lowest LOOIC.
 
 #### 4. Robust BMA (Median-based) — `bma_robust`
 
@@ -305,26 +310,29 @@ where \(k^* = \arg\min_k \text{LOOIC}_k\) is the model with the lowest LOOIC.
 Uses the same LOOIC-based weights as `bma_loo`, but the final prediction uses the **median** of the combined predictive samples rather than the mean.
 
 **Ensemble prediction:**
-\[
-\hat{y}^* = \text{median}\left(\bigcup_{k=1}^{K} \{y^*_j \sim p_k(y^* | y) : j = 1, \ldots, n_k\}\right)
-\]
 
-where \(n_k\) is the number of samples drawn from model \(k\) (proportional to \(w_k\)).
+```
+y*_predicted = median(union of all samples from all models)
+```
+
+where samples are drawn from each model k proportionally to its weight w_k.
 
 #### 5. Bayesian Stacking — `stacked`
 
 **Weight computation (theoretical):**
 Bayesian Stacking optimizes weights to maximize the sum of log-scores:
-\[
-\max_{w} \sum_{i=1}^{n} \log\left(\sum_{k=1}^{K} w_k \cdot p_k(y_i | y_{-i})\right)
-\]
 
-subject to \(w_k \geq 0\) for all \(k\) and \(\sum_{k=1}^{K} w_k = 1\), where \(p_k(y_i | y_{-i})\) is the LOO predictive density for model \(k\) at observation \(i\).
+```
+max_w sum_i log(sum_k w_k * p_k(y_i | y_{-i}))
+```
+
+subject to w_k >= 0 for all k and sum_k w_k = 1, where p_k(y_i | y_{-i}) is the LOO predictive density for model k at observation i.
 
 **Ensemble prediction:**
-\[
-p(y^* | y) = \sum_{k=1}^{K} w_k^{\text{stacked}} \cdot p_k(y^* | y)
-\]
+
+```
+p(y* | y) = sum_k w_k^stacked * p_k(y* | y)
+```
 
 **Note:** In the current implementation, Bayesian Stacking uses the same LOOIC-based weights as `bma_loo` (the optimization step is not yet implemented).
 
@@ -439,5 +447,3 @@ Key Python libraries used:
 - **Plotly.js** (via CDN in `index.html`) – interactive visualisations.
 
 Everything required is listed in `requirements.txt`.
-
----
