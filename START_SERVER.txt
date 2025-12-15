@@ -1,0 +1,31 @@
+HOW TO START THE SERVER IN THE BACKGROUND:
+==========================================
+
+Option 1 (Easiest - PowerShell):
+---------------------------------
+1. Open PowerShell in this directory
+2. Run: .\start_server.ps1
+   OR
+   Run: Start-Process python -ArgumentList "app.py" -WindowStyle Hidden
+
+Option 2 (Batch file):
+----------------------
+1. Double-click: start_server.bat
+   OR
+2. From command prompt: start_server.bat
+
+Option 3 (Manual - Background):
+-------------------------------
+In PowerShell, run:
+   Start-Process python -ArgumentList "app.py" -WindowStyle Hidden
+
+Then open your browser and go to:
+   http://localhost:5000
+
+TO STOP THE SERVER:
+-------------------
+In PowerShell, run:
+   Get-Process python | Stop-Process -Force
+
+Or find python.exe in Task Manager and end the process.
+

@@ -1,0 +1,1504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bayesian Bike Sharing Analysis - Interactive Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.plot.ly/plotly-2.26.0.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --secondary-color: #64748b;
+            --success-color: #10b981;
+            --danger-color: #ef4444;
+            --warning-color: #f59e0b;
+            --dark-color: #1e293b;
+            --light-bg: #f8fafc;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding-bottom: 2rem;
+        }
+        
+        .navbar {
+            background: rgba(255, 255, 255, 0.95) !important;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .main-container {
+            padding: 2rem 0;
+        }
+        
+        .card {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: transform 0.3s, box-shadow 0.3s;
+            background: white;
+            margin-bottom: 2rem;
+        }
+        
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 15px rgba(0,0,0,0.2);
+        }
+        
+        .card-header {
+            background: linear-gradient(135deg, var(--primary-color), #3b82f6);
+            color: white;
+            border-radius: 15px 15px 0 0 !important;
+            padding: 1.25rem;
+            font-weight: 600;
+        }
+        
+        .stat-card {
+            text-align: center;
+            padding: 1.5rem;
+        }
+        
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+        
+        .stat-label {
+            color: var(--secondary-color);
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 0.5rem;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-color), #3b82f6);
+            border: none;
+            border-radius: 8px;
+            padding: 0.5rem 1rem;
+            font-weight: 600;
+        }
+        
+        .model-badge {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin: 0.25rem;
+        }
+        
+        .badge-available {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        
+        .badge-unavailable {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 2rem;
+        }
+        
+        .concept-tag {
+            display: inline-block;
+            background: #e0e7ff;
+            color: #3730a3;
+            padding: 0.25rem 0.75rem;
+            border-radius: 15px;
+            font-size: 0.85rem;
+            margin: 0.25rem;
+        }
+        
+        .tab-content {
+            padding: 1.5rem;
+        }
+        
+        .plot-container {
+            min-height: 400px;
+            margin-top: 1rem;
+            background: white;
+            border-radius: 8px;
+            padding: 1rem;
+        }
+        
+        .param-selector {
+            margin-bottom: 1rem;
+        }
+        
+        .alert-custom {
+            border-left: 4px solid;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+        
+        .nav-tabs .nav-link {
+            color: var(--primary-color);
+        }
+        
+        .nav-tabs .nav-link.active {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-light">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                <i class="fas fa-chart-line"></i> Bayesian Analysis Dashboard
+            </a>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container main-container">
+        <!-- Data Overview Section -->
+        <div class="card" id="dashboard">
+            <div class="card-header">
+                <i class="fas fa-database"></i> Data Overview
+            </div>
+            <div class="card-body">
+                <div id="data-status" class="loading">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2">Loading data overview...</p>
+                </div>
+                <div id="data-stats" style="display: none;">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="stat-card">
+                                <div class="stat-value" id="total-obs-day">-</div>
+                                <div class="stat-label">Daily Observations</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="stat-card">
+                                <div class="stat-value" id="total-obs-hour">-</div>
+                                <div class="stat-label">Hourly Observations</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="stat-card">
+                                <div class="stat-value" id="mean-cnt">-</div>
+                                <div class="stat-label">Mean Rentals (Daily)</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="stat-card">
+                                <div class="stat-value" style="font-size: 1.2rem;" id="date-range">-</div>
+                                <div class="stat-label">Date Range</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row mt-4">
+                        <div class="col-md-6">
+                            <h5>Data Files Status</h5>
+                            <div id="file-status"></div>
+                        </div>
+                        <div class="col-md-6">
+                            <h5>Key Features</h5>
+                            <div>
+                                <span class="concept-tag">Normal Distribution</span>
+                                <span class="concept-tag">Hierarchical Modeling</span>
+                                <span class="concept-tag">Bayesian Regression</span>
+                                <span class="concept-tag">MCMC Sampling</span>
+                                <span class="concept-tag">Posterior Inference</span>
+                                <span class="concept-tag">Model Comparison</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Model Status Section -->
+        <div class="card" id="models">
+            <div class="card-header">
+                <i class="fas fa-cogs"></i> Model Status & Exploration
+            </div>
+            <div class="card-body">
+                <div id="model-status" class="loading">
+                    <div class="spinner-border text-primary" role="status"></div>
+                    <p class="mt-2">Checking model status...</p>
+                </div>
+                <div id="model-list" style="display: none;">
+                    <div id="model-badges" class="mb-3"></div>
+                    <ul class="nav nav-tabs" id="modelTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="hierarchical-tab" data-bs-toggle="tab" data-bs-target="#hierarchical" type="button" onclick="loadModelVisualization('hierarchical')">
+                                Hierarchical Model
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="bma-tab" data-bs-toggle="tab" data-bs-target="#bma" type="button" onclick="loadModelVisualization('regression_bma')">
+                                Regression BMA
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="hier-reg-tab" data-bs-toggle="tab" data-bs-target="#hier-reg" type="button" onclick="loadModelVisualization('hierarchical_regression')">
+                                Hierarchical Regression
+                            </button>
+                        </li>
+                    </ul>
+                    <div class="tab-content" id="modelTabContent">
+                        <div class="tab-pane fade show active" id="hierarchical" role="tabpanel">
+                            <div id="model-hierarchical-content">
+                                <h5 class="mt-3">Hierarchical Normal Model</h5>
+                                <p>Demonstrates: Exchangeability, Partial Pooling, Shrinkage Effects</p>
+                                <div class="param-selector">
+                                    <label for="hierarchical-param">Select Parameter:</label>
+                                    <select id="hierarchical-param" class="form-select" onchange="plotParameter('hierarchical', this.value)">
+                                        <option value="">Select a parameter...</option>
+                                    </select>
+                                </div>
+                                <div id="hierarchical-plot" class="plot-container">
+                                    <p class="text-muted">Select a parameter to view its posterior distribution. <small>(Showing only key parameters for clarity)</small></p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="tab-pane fade" id="bma" role="tabpanel">
+                            <div id="model-bma-content">
+                                <h5 class="mt-3">Bayesian Regression with Model Averaging</h5>
+                                <p>Demonstrates: Variable Selection, BMA, Spike-and-Slab Priors</p>
+                                <div class="param-selector">
+                                    <label for="bma-param">Select Parameter:</label>
+                                    <select id="bma-param" class="form-select" onchange="plotParameter('regression_bma', this.value)">
+                                        <option value="">Select a parameter...</option>
+                                    </select>
+                                </div>
+                                <div id="bma-plot" class="plot-container">
+                                    <p class="text-muted">Select a parameter to view its posterior distribution. <small>(Showing only key parameters for clarity)</small></p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="tab-pane fade" id="hier-reg" role="tabpanel">
+                            <div id="model-hier-reg-content">
+                                <h5 class="mt-3">Hierarchical Regression Model</h5>
+                                <p>Demonstrates: Multilevel Modeling, Group Comparisons, Information Borrowing</p>
+                                <div class="param-selector">
+                                    <label for="hier-reg-param">Select Parameter:</label>
+                                    <select id="hier-reg-param" class="form-select" onchange="plotParameter('hierarchical_regression', this.value)">
+                                        <option value="">Select a parameter...</option>
+                                    </select>
+                                </div>
+                                <div id="hier-reg-plot" class="plot-container">
+                                    <p class="text-muted">Select a parameter to view its posterior distribution. <small>(Showing only key parameters for clarity)</small></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Model Comparison Section -->
+        <div class="card" id="comparison">
+            <div class="card-header">
+                <i class="fas fa-balance-scale"></i> Model Comparison
+            </div>
+            <div class="card-body">
+                <p>
+                    This dashboard focuses on data exploration, model summaries, and predictions.
+                    Detailed model comparison (including convergence diagnostics and LOO-based metrics)
+                    is performed in the accompanying Colab notebook
+                    <code>collab_project/hierarchical_models_comparison.ipynb</code>.
+                </p>
+                <div id="comparison-results" class="alert alert-info mb-0">
+                    Model comparison details are documented in the Colab notebook. Refer to that notebook
+                    for numerical results and discussion.
+                </div>
+            </div>
+        </div>
+
+        <!-- Predictions Section -->
+        <div class="card" id="predictions">
+            <div class="card-header">
+                <i class="fas fa-crystal-ball"></i> Predictions
+            </div>
+            <div class="card-body">
+                <p class="mb-3">Generate predictions for future dates with specified weather and conditions.</p>
+                
+                <form id="prediction-form">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="pred-algorithm" class="form-label">Prediction Algorithm:</label>
+                            <select id="pred-algorithm" class="form-select" required>
+                                <option value="bma_loo">Bayesian Model Averaging (LOO-weighted)</option>
+                                <option value="bma_equal">Bayesian Model Averaging (Equal weights)</option>
+                                <option value="bma_best">Best Model Only (LOO-selected)</option>
+                                <option value="bma_robust">Robust BMA (Median-based)</option>
+                                <option value="stacked">Bayesian Stacking</option>
+                            </select>
+                            <small class="text-muted">Choose the Bayesian ensemble method</small>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="pred-season" class="form-label">Season:</label>
+                            <select id="pred-season" class="form-select" required>
+                                <option value="1">1 - Spring</option>
+                                <option value="2">2 - Summer</option>
+                                <option value="3">3 - Fall</option>
+                                <option value="4">4 - Winter</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-3">
+                            <label for="pred-temp" class="form-label">Temperature (0-1):</label>
+                            <input type="number" id="pred-temp" class="form-control" min="0" max="1" step="0.01" value="0.5" required>
+                            <small class="text-muted">Normalized temperature</small>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="pred-atemp" class="form-label">Feels Like Temp (0-1):</label>
+                            <input type="number" id="pred-atemp" class="form-control" min="0" max="1" step="0.01" value="0.5" required>
+                            <small class="text-muted">Normalized</small>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="pred-hum" class="form-label">Humidity (0-1):</label>
+                            <input type="number" id="pred-hum" class="form-control" min="0" max="1" step="0.01" value="0.5" required>
+                            <small class="text-muted">Normalized</small>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="pred-windspeed" class="form-label">Wind Speed (0-1):</label>
+                            <input type="number" id="pred-windspeed" class="form-control" min="0" max="1" step="0.01" value="0.5" required>
+                            <small class="text-muted">Normalized</small>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-3">
+                            <label for="pred-weathersit" class="form-label">Weather Situation:</label>
+                            <select id="pred-weathersit" class="form-select" required>
+                                <option value="1">1 - Clear/Partly Cloudy</option>
+                                <option value="2">2 - Mist/Cloudy</option>
+                                <option value="3">3 - Light Rain/Light Snow</option>
+                                <option value="4">4 - Heavy Rain/Snow</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="pred-holiday" class="form-label">Holiday:</label>
+                            <select id="pred-holiday" class="form-select" required>
+                                <option value="0">No</option>
+                                <option value="1">Yes</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="pred-workingday" class="form-label">Working Day:</label>
+                            <select id="pred-workingday" class="form-select" required>
+                                <option value="1">Yes</option>
+                                <option value="0">No</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="fas fa-search"></i> Generate Prediction
+                            </button>
+                        </div>
+                    </div>
+                </form>
+                
+                <div id="prediction-results" class="mt-4" style="display: none;">
+                    <h5>Prediction Results</h5>
+                    <div id="prediction-stats" class="mb-3"></div>
+                    <div id="prediction-plot" class="plot-container"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Global state
+        let availableModels = {};
+        let modelMetadata = {};
+        let modelParameters = {};
+
+        // Load data overview
+        async function loadDataOverview() {
+            try {
+                const statusRes = await fetch('/api/data/status');
+                const status = await statusRes.json();
+                
+                const overviewRes = await fetch('/api/data/overview');
+                const overview = await overviewRes.json();
+                
+                if (overview.error) {
+                    document.getElementById('data-status').innerHTML = 
+                        `<div class="alert alert-danger">${overview.error}</div>`;
+                    return;
+                }
+                
+                // Update stats
+                document.getElementById('total-obs-day').textContent = 
+                    overview.day_data.total_observations.toLocaleString();
+                document.getElementById('total-obs-hour').textContent = 
+                    overview.hour_data.total_observations.toLocaleString();
+                document.getElementById('mean-cnt').textContent = 
+                    Math.round(overview.day_data.target_stats.mean);
+                
+                const dateRange = `${overview.day_data.date_range.start.substring(0, 4)}-${overview.day_data.date_range.end.substring(0, 4)}`;
+                document.getElementById('date-range').textContent = dateRange;
+                
+                // File status
+                const fileStatusHtml = `
+                    <div class="alert ${status.day_data_exists ? 'alert-success' : 'alert-danger'} alert-custom">
+                        <i class="fas fa-${status.day_data_exists ? 'check' : 'times'}"></i> 
+                        day.csv: ${status.day_data_exists ? 'Found' : 'Not Found'}
+                    </div>
+                    <div class="alert ${status.hour_data_exists ? 'alert-success' : 'alert-danger'} alert-custom">
+                        <i class="fas fa-${status.hour_data_exists ? 'check' : 'times'}"></i> 
+                        hour.csv: ${status.hour_data_exists ? 'Found' : 'Not Found'}
+                    </div>
+                `;
+                document.getElementById('file-status').innerHTML = fileStatusHtml;
+                
+                document.getElementById('data-status').style.display = 'none';
+                document.getElementById('data-stats').style.display = 'block';
+            } catch (error) {
+                document.getElementById('data-status').innerHTML = 
+                    `<div class="alert alert-danger">Error loading data: ${error.message}</div>`;
+            }
+        }
+        
+        // Load model status
+        async function loadModelStatus() {
+            try {
+                const res = await fetch('/api/models/status');
+                const data = await res.json();
+                
+                // Handle both old format (just boolean dict) and new format (with metadata)
+                if (data.models) {
+                    availableModels = data.models;
+                    modelMetadata = data.metadata || {};
+                } else {
+                    // Old format - convert to new
+                    availableModels = data;
+                    modelMetadata = {};
+                }
+                
+                const statusHtml = Object.entries(availableModels).map(([key, available]) => {
+                    const displayName = modelMetadata[key]?.display_name || key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                    const badgeClass = available ? 'badge-available' : 'badge-unavailable';
+                    const icon = available ? 'check-circle' : 'times-circle';
+                    return `<span class="model-badge ${badgeClass}">
+                        <i class="fas fa-${icon}"></i> ${displayName}
+                    </span>`;
+                }).join('');
+                
+                document.getElementById('model-status').innerHTML = '';
+                document.getElementById('model-badges').innerHTML = `<h5>Available Models:</h5>${statusHtml}`;
+                document.getElementById('model-list').style.display = 'block';
+                
+                // Dynamically create tabs for each model
+                createModelTabs(availableModels, modelMetadata);
+                
+                // Load parameters for available models
+                for (const [modelName, available] of Object.entries(availableModels)) {
+                    if (available) {
+                        await loadModelParameters(modelName);
+                    }
+                }
+                
+            } catch (error) {
+                document.getElementById('model-status').innerHTML = 
+                    `<div class="alert alert-danger">Error loading models: ${error.message}</div>`;
+            }
+        }
+        
+        // Create model tabs dynamically
+        function createModelTabs(models, metadata) {
+            const tabList = document.getElementById('modelTabs');
+            const tabContent = document.getElementById('modelTabContent');
+            
+            // Clear existing tabs
+            tabList.innerHTML = '';
+            tabContent.innerHTML = '';
+            
+            // Create tabs for each available model
+            const availableModelKeys = Object.entries(models).filter(([key, available]) => available).map(([key]) => key);
+            
+            availableModelKeys.forEach((modelKey, index) => {
+                const displayName = metadata[modelKey]?.display_name || modelKey.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                const tabId = modelKey.replace(/[^a-zA-Z0-9]/g, '-');
+                const isActive = index === 0;
+                
+                // Create tab button
+                const tabButton = document.createElement('li');
+                tabButton.className = 'nav-item';
+                tabButton.setAttribute('role', 'presentation');
+                tabButton.innerHTML = `
+                    <button class="nav-link ${isActive ? 'active' : ''}" 
+                            id="${tabId}-tab" 
+                            data-bs-toggle="tab" 
+                            data-bs-target="#${tabId}" 
+                            type="button"
+                            onclick="loadModelVisualization('${modelKey}')">
+                        ${displayName}
+                    </button>
+                `;
+                tabList.appendChild(tabButton);
+                
+                // Create tab content
+                const tabPane = document.createElement('div');
+                tabPane.className = `tab-pane fade ${isActive ? 'show active' : ''}`;
+                tabPane.id = tabId;
+                tabPane.setAttribute('role', 'tabpanel');
+                tabPane.innerHTML = `
+                    <div id="model-${modelKey}-content">
+                        <h5 class="mt-3">${displayName}</h5>
+                        <p>Select a parameter to view its posterior distribution.</p>
+                        <div class="param-selector">
+                            <label for="${tabId}-param">Select Parameter:</label>
+                            <select id="${tabId}-param" class="form-select" onchange="plotParameter('${modelKey}', this.value)">
+                                <option value="">Select a parameter...</option>
+                            </select>
+                        </div>
+                        <div id="${tabId}-plot" class="plot-container">
+                            <p class="text-muted">Select a parameter to view its posterior distribution.</p>
+                        </div>
+                    </div>
+                `;
+                tabContent.appendChild(tabPane);
+            });
+            
+            // If no models available, show message
+            if (availableModelKeys.length === 0) {
+                tabContent.innerHTML = '<div class="alert alert-info">No models available. Fit models first.</div>';
+            }
+        }
+        
+        // Load parameters for a model
+        async function loadModelParameters(modelName) {
+            try {
+                const res = await fetch(`/api/models/${modelName}/posterior`);
+                const data = await res.json();
+                
+                if (data.parameters) {
+                    modelParameters[modelName] = data.parameters;
+                    
+                    // Store parameter info if available
+                    if (data.parameter_info) {
+                        if (!window.modelParameterInfo) {
+                            window.modelParameterInfo = {};
+                        }
+                        window.modelParameterInfo[modelName] = data.parameter_info;
+                    }
+                    
+                    // Check for convergence warning
+                    if (data.convergence_warning) {
+                        const tabId = modelName.replace(/[^a-zA-Z0-9]/g, '-');
+                        const plotId = `${tabId}-plot`;
+                        const plotDiv = document.getElementById(plotId);
+                        if (plotDiv) {
+                            plotDiv.innerHTML = `
+                                <div class="alert alert-warning">
+                                    <h6><i class="fas fa-exclamation-triangle"></i> Model Convergence Issue</h6>
+                                    <p>${data.message || 'This model did not converge properly.'}</p>
+                                    ${data.recommendation ? `<p><strong>Recommendation:</strong> ${data.recommendation}</p>` : ''}
+                                    <small class="text-muted">To fix this, refit the model: <code>python scripts/06_fit_models.py</code></small>
+                                </div>
+                            `;
+                        }
+                        
+                        // Clear parameter dropdown
+                        const selectId = `${tabId}-param`;
+                        const select = document.getElementById(selectId);
+                        if (select) {
+                            select.innerHTML = '<option value="">No parameters available (model did not converge)</option>';
+                            select.disabled = true;
+                        }
+                        return;
+                    }
+                    
+                    // Populate dropdown - find select element dynamically
+                    const tabId = modelName.replace(/[^a-zA-Z0-9]/g, '-');
+                    const selectId = `${tabId}-param`;
+                    const select = document.getElementById(selectId);
+                    
+                    if (select) {
+                        select.innerHTML = '<option value="">Select a parameter...</option>';
+                        select.disabled = false;
+                        
+                        if (data.parameters && data.parameters.length > 0) {
+                            data.parameters.forEach(param => {
+                            const paramInfo = data.parameter_info && data.parameter_info[param];
+                            
+                            if (paramInfo && paramInfo.is_array) {
+                                // For array parameters, create options for limited indices only
+                                const shape = paramInfo.shape;
+                                const maxIndices = paramInfo.max_indices_to_show || 3; // Default to 3
+                                
+                                if (shape.length === 1) {
+                                    // Vector parameter (e.g., alpha[0], alpha[1], ...)
+                                    // Limit to max_indices_to_show
+                                    const max = Math.min(maxIndices, shape[0]);
+                                    for (let i = 0; i < max; i++) {
+                                        const option = document.createElement('option');
+                                        option.value = `${param}|${i}`;
+                                        // Use meaningful labels for common parameters
+                                        let label = `${param}[${i}]`;
+                                        if (param === 'theta' && i < 4) {
+                                            const seasons = ['Spring', 'Summer', 'Fall', 'Winter'];
+                                            label = `${param}[${i}] (${seasons[i]})`;
+                                        } else if (param === 'alpha' && i < 4) {
+                                            const seasons = ['Spring', 'Summer', 'Fall', 'Winter'];
+                                            label = `${param}[${i}] (${seasons[i]})`;
+                                        }
+                                        option.textContent = label;
+                                        select.appendChild(option);
+                                    }
+                                } else if (shape.length === 2) {
+                                    // Matrix parameter (e.g., beta[0,0], beta[0,1], ...)
+                                    // Only show first row with limited columns
+                                    const maxCols = Math.min(maxIndices, shape[1]);
+                                    const maxRows = Math.min(1, shape[0]); // Only first row
+                                    for (let i = 0; i < maxRows; i++) {
+                                        for (let j = 0; j < maxCols; j++) {
+                                            const option = document.createElement('option');
+                                            option.value = `${param}|${i},${j}`;
+                                            // Use meaningful labels for beta parameters
+                                            let label = `${param}[${i},${j}]`;
+                                            if (param === 'beta') {
+                                                const predictors = ['temp', 'atemp', 'hum', 'windspeed', 'holiday', 'workingday', 'weathersit'];
+                                                if (j < predictors.length) {
+                                                    label = `${param}[${i},${j}] (${predictors[j]})`;
+                                                }
+                                            }
+                                            option.textContent = label;
+                                            select.appendChild(option);
+                                        }
+                                    }
+                                } else {
+                                    // For higher dimensions, skip or show just the parameter name
+                                    const option = document.createElement('option');
+                                    option.value = param;
+                                    option.textContent = param;
+                                    select.appendChild(option);
+                                }
+                            } else {
+                                // Scalar parameter
+                                const option = document.createElement('option');
+                                option.value = param;
+                                option.textContent = param;
+                                select.appendChild(option);
+                            }
+                        });
+                        } else {
+                            // No parameters available
+                            select.innerHTML = '<option value="">No parameters available</option>';
+                            select.disabled = true;
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error(`Error loading parameters for ${modelName}:`, error);
+            }
+        }
+        
+        // Plot parameter posterior
+        async function plotParameter(modelName, paramName) {
+            // Dynamically determine plot container ID
+            const tabId = modelName.replace(/[^a-zA-Z0-9]/g, '-');
+            const plotId = `${tabId}-plot`;
+            
+            if (!paramName) {
+                const plotDiv = document.getElementById(plotId);
+                if (plotDiv) {
+                    plotDiv.innerHTML = '<p class="text-muted">Select a parameter to view its posterior distribution.</p>';
+                }
+                return;
+            }
+            
+            if (!plotId) {
+                console.error('Invalid model name:', modelName);
+                return;
+            }
+            
+            const plotDiv = document.getElementById(plotId);
+            if (!plotDiv) {
+                console.error('Plot div not found:', plotId);
+                return;
+            }
+            
+            plotDiv.innerHTML = '<div class="text-center"><div class="spinner-border text-primary"></div><p class="mt-2">Loading plot...</p></div>';
+            
+            try {
+                // Parse parameter name and index if present (format: "param|index" or "param|i,j")
+                let actualParamName = paramName;
+                let indexParam = null;
+                
+                if (paramName.includes('|')) {
+                    const parts = paramName.split('|');
+                    actualParamName = parts[0];
+                    indexParam = parts[1];
+                }
+                
+                // Get posterior samples
+                let url = `/api/models/${modelName}/posterior?param=${encodeURIComponent(actualParamName)}`;
+                if (indexParam) {
+                    url += `&index=${encodeURIComponent(indexParam)}`;
+                }
+                console.log('Fetching:', url);
+                
+                const res = await fetch(url);
+                
+                if (!res.ok) {
+                    let errorMessage = `HTTP ${res.status}: ${res.statusText}`;
+                    try {
+                        const errorData = await res.json();
+                        errorMessage = errorData.error || errorMessage;
+                    } catch {
+                        // If not JSON, try to get text
+                        const text = await res.text().catch(() => '');
+                        if (text) {
+                            errorMessage = `Server error: ${text.substring(0, 200)}`;
+                        }
+                    }
+                    throw new Error(errorMessage);
+                }
+                
+                // Check if response is JSON
+                const contentType = res.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    const text = await res.text();
+                    console.error('Non-JSON response:', text.substring(0, 200));
+                    throw new Error('Server returned non-JSON response. Check console for details.');
+                }
+                
+                const data = await res.json();
+                console.log('Received data:', {param: data.parameter, samples_count: data.samples?.length});
+                
+                if (data.error) {
+                    // Check if it's a convergence issue
+                    let errorHtml = '';
+                    if (data.model_convergence_issue) {
+                        errorHtml = `
+                            <div class="alert alert-warning">
+                                <h6><i class="fas fa-exclamation-triangle"></i> Model Did Not Converge</h6>
+                                <p><strong>Error:</strong> ${data.error}</p>
+                                ${data.hint ? `<p><small>${data.hint}</small></p>` : ''}
+                                ${data.recommendation ? `<div class="alert alert-info mt-2 mb-0"><small><strong>Recommendation:</strong> ${data.recommendation}</small></div>` : ''}
+                                ${data.available_params_with_values && data.available_params_with_values.length > 0 ? 
+                                    `<p><small>Other parameters to try (may also fail): ${data.available_params_with_values.join(', ')}</small></p>` : 
+                                    '<p><small><strong>All parameters in this model have convergence issues.</strong> Please use "Hierarchical Normal Model" or "Hierarchical Negative Binomial Regression" instead, which have converged successfully.</small></p>'}
+                                <hr>
+                                <p class="mb-0"><small class="text-muted">To refit this model, run: <code>python scripts/06_fit_models.py</code></small></p>
+                            </div>
+                        `;
+                    } else {
+                        errorHtml = `<div class="alert alert-danger">
+                            <strong>Error:</strong> ${data.error}
+                            ${data.hint ? `<br><small>${data.hint}</small>` : ''}
+                            ${data.available_parameters ? `<br><small>Available parameters: ${data.available_parameters.join(', ')}</small>` : ''}
+                            ${data.available_params ? `<br><small>Available parameters: ${data.available_params.slice(0, 10).join(', ')}</small>` : ''}
+                        </div>`;
+                    }
+                    plotDiv.innerHTML = errorHtml;
+                    return;
+                }
+                
+                if (!data.samples || data.samples.length === 0) {
+                    plotDiv.innerHTML = `<div class="alert alert-warning">No samples available for parameter ${paramName}</div>`;
+                    return;
+                }
+                
+                // Ensure we have valid numeric data
+                const samples = data.samples.filter(s => typeof s === 'number' && isFinite(s));
+                if (samples.length === 0) {
+                    plotDiv.innerHTML = `<div class="alert alert-warning">No valid numeric samples for parameter ${paramName}</div>`;
+                    return;
+                }
+                
+                // Determine display name for title
+                let displayParamName = data.parameter || paramName;
+                if (paramName.includes('|')) {
+                    const parts = paramName.split('|');
+                    displayParamName = `${parts[0]}[${parts[1]}]`;
+                } else if (data.index) {
+                    displayParamName = `${data.parameter}[${data.index}]`;
+                }
+                
+                // Create histogram with Plotly
+                const trace = {
+                    x: samples,
+                    type: 'histogram',
+                    nbinsx: Math.min(50, Math.ceil(Math.sqrt(samples.length))),
+                    marker: {color: '#3b82f6'},
+                    opacity: 0.7,
+                    name: 'Posterior',
+                    histnorm: 'probability density'
+                };
+                
+                const annotations = [];
+                if (data.mean !== null && data.mean !== undefined && isFinite(data.mean)) {
+                    annotations.push({
+                        x: data.mean,
+                        y: 0,
+                        xref: 'x',
+                        yref: 'paper',
+                        text: `Mean: ${data.mean.toFixed(3)}`,
+                        showarrow: true,
+                        arrowhead: 2,
+                        ax: 0,
+                        ay: -40,
+                        bgcolor: 'white',
+                        bordercolor: '#3b82f6',
+                        borderwidth: 2
+                    });
+                }
+                
+                // Use q2_5 and q97_5 (from backend) or q025 and q975 (alternative naming)
+                const q2_5 = data.q2_5 !== undefined ? data.q2_5 : data.q025;
+                const q97_5 = data.q97_5 !== undefined ? data.q97_5 : data.q975;
+                
+                if (q2_5 !== null && q2_5 !== undefined && 
+                    q97_5 !== null && q97_5 !== undefined &&
+                    isFinite(q2_5) && isFinite(q97_5)) {
+                    annotations.push({
+                        x: (q2_5 + q97_5) / 2,
+                        y: 0.95,
+                        xref: 'x',
+                        yref: 'paper',
+                        text: `95% HDI: [${q2_5.toFixed(3)}, ${q97_5.toFixed(3)}]`,
+                        showarrow: false,
+                        bgcolor: 'rgba(255,255,255,0.8)',
+                        bordercolor: '#3b82f6',
+                        borderwidth: 1
+                    });
+                }
+                
+                const layout = {
+                    title: `Posterior Distribution: ${displayParamName}`,
+                    xaxis: {title: displayParamName},
+                    yaxis: {title: 'Density'},
+                    showlegend: false,
+                    margin: {l: 60, r: 20, t: 60, b: 60},
+                    annotations: annotations,
+                    plot_bgcolor: 'white',
+                    paper_bgcolor: 'white'
+                };
+                
+                const config = {
+                    responsive: true,
+                    displayModeBar: true,
+                    displaylogo: false
+                };
+                
+                // Clear any loading messages first
+                plotDiv.innerHTML = '';
+                
+                Plotly.newPlot(plotId, [trace], layout, config).then(() => {
+                    console.log('Plot rendered successfully');
+                }).catch((plotError) => {
+                    console.error('Plotly rendering error:', plotError);
+                    plotDiv.innerHTML = `<div class="alert alert-danger">
+                        <strong>Error rendering plot:</strong> ${plotError.message}
+                    </div>`;
+                });
+                
+            } catch (error) {
+                console.error('Error in plotParameter:', error);
+                plotDiv.innerHTML = `<div class="alert alert-danger">
+                    <strong>Error loading plot:</strong> ${error.message}
+                    <br><small>Check the browser console for more details.</small>
+                </div>`;
+            }
+        }
+        
+        // Load model visualization when tab is clicked
+        function loadModelVisualization(modelName) {
+            // Parameters are already loaded, just need to show the first one if available
+            const params = modelParameters[modelName];
+            if (params && params.length > 0) {
+                // Optionally auto-load first parameter
+                // plotParameter(modelName, params[0]);
+            }
+        }
+        
+        // Load model comparison
+        async function loadComparison() {
+            const resultsDiv = document.getElementById('comparison-results');
+            if (!resultsDiv) {
+                console.error('comparison-results div not found');
+                return;
+            }
+            
+            try {
+                const res = await fetch('/api/models/comparison');
+                
+                // Get response as text (can only read once!)
+                const text = await res.text();
+                
+                // Try to parse as JSON
+                let comparison;
+                try {
+                    comparison = JSON.parse(text);
+                } catch (e) {
+                    // If parsing fails, check if it's HTML (starts with '<')
+                    if (text.trim().startsWith('<')) {
+                        console.error('Received HTML instead of JSON (likely an error page):', text.substring(0, 500));
+                        await loadAlternativeComparison();
+                        return;
+                    }
+                    // If not HTML but still not valid JSON
+                    console.error('Failed to parse JSON response:', e);
+                    console.error('Response text:', text.substring(0, 500));
+                    await loadAlternativeComparison();
+                    return;
+                }
+                
+                if (comparison.error) {
+                    console.log('Comparison returned error, trying alternative:', comparison.error);
+                    // Try alternative comparison
+                    await loadAlternativeComparison();
+                    return;
+                }
+                
+                // Check if LOO-CV is available
+                if (!comparison.available) {
+                    // Try alternative comparison
+                    await loadAlternativeComparison();
+                    return;
+                }
+                
+                if (comparison.loo_results && comparison.loo_results.length > 0) {
+                    // Filter valid results (those with LOOIC values)
+                    const validResults = comparison.loo_results.filter(r => r.looic !== null && r.looic !== undefined);
+                    
+                    if (validResults.length === 0) {
+                        // Show alternative comparison if LOO-CV not available
+                        await loadAlternativeComparison();
+                        return;
+                    }
+                    
+                    // Find best model
+                    const bestModel = validResults.reduce((best, current) => 
+                        current.looic < best.looic ? current : best
+                    );
+                    
+                    // Create table with more details
+                    let html = `
+                        <div class="alert alert-info">
+                            <strong>Best Model:</strong> ${bestModel.model} (LOOIC: ${bestModel.looic.toFixed(2)})
+                            <br><small>Lower LOOIC indicates better predictive performance.</small>
+                        </div>
+                        <table class="table table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Model</th>
+                                    <th>LOOIC</th>
+                                    <th>SE</th>
+                                    <th>p_loo</th>
+                                    <th>Δ LOOIC</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>`;
+                    
+                    comparison.loo_results.forEach(result => {
+                        const isBest = result.is_best || (result.looic === bestModel.looic);
+                        const rowClass = isBest ? 'table-success' : '';
+                        const statusBadge = isBest ? '<span class="badge bg-success">Best</span>' : 
+                                          (result.error ? `<span class="badge bg-danger">${result.error}</span>` : 
+                                          (result.looic_diff && result.looic_diff < 2 * (result.se_diff || 0) ? 
+                                          '<span class="badge bg-warning">Similar</span>' : ''));
+                        
+                        html += `<tr class="${rowClass}">
+                            <td><strong>${result.model}</strong></td>
+                            <td>${result.looic ? result.looic.toFixed(2) : '<span class="text-muted">N/A</span>'}</td>
+                            <td>${result.se_looic ? result.se_looic.toFixed(2) : '<span class="text-muted">N/A</span>'}</td>
+                            <td>${result.p_loo ? result.p_loo.toFixed(2) : '<span class="text-muted">N/A</span>'}</td>
+                            <td>${result.looic_diff !== undefined ? 
+                                (result.looic_diff === 0 ? '0.00' : 
+                                 `+${result.looic_diff.toFixed(2)}`) : 
+                                '<span class="text-muted">-</span>'}</td>
+                            <td>${statusBadge}</td>
+                        </tr>`;
+                    });
+                    
+                    html += '</tbody></table>';
+                    
+                    // Add bar chart - clean up model names
+                    const models = validResults.map(r => {
+                        let name = r.model || 'Unknown Model';
+                        // Remove "Model X: " prefix if present
+                        name = name.replace(/^Model \d+:\s*/, '');
+                        return name;
+                    });
+                    const looics = validResults.map(r => r.looic);
+                    const colors = validResults.map(r => r.is_best ? '#10b981' : '#3b82f6');
+                    
+                    html += '<div id="comparison-chart" class="plot-container mt-3"></div>';
+                    resultsDiv.innerHTML = html;
+                    
+                    // Create bar chart
+                    if (window.Plotly && validResults.length > 0) {
+                        const trace = {
+                            x: models,
+                            y: looics,
+                            type: 'bar',
+                            marker: {
+                                color: colors,
+                                line: {color: '#1e293b', width: 1}
+                            },
+                            text: looics.map(v => v.toFixed(2)),
+                            textposition: 'outside',
+                            name: 'LOOIC'
+                        };
+                        
+                        const layout = {
+                            title: {
+                                text: 'Model Comparison (LOOIC - Lower is Better)',
+                                font: {size: 16}
+                            },
+                            xaxis: {
+                                title: 'Model',
+                                tickangle: -45
+                            },
+                            yaxis: {
+                                title: 'LOOIC (Leave-One-Out Information Criterion)'
+                            },
+                            margin: {l: 80, r: 20, t: 60, b: 100},
+                            plot_bgcolor: 'white',
+                            paper_bgcolor: 'white',
+                            annotations: [{
+                                x: models[looics.indexOf(Math.min(...looics))],
+                                y: Math.min(...looics),
+                                text: 'Best Model',
+                                showarrow: true,
+                                arrowhead: 2,
+                                ax: 0,
+                                ay: -40,
+                                bgcolor: 'rgba(255,255,255,0.8)',
+                                bordercolor: '#10b981',
+                                borderwidth: 2
+                            }]
+                        };
+                        
+                        Plotly.newPlot('comparison-chart', [trace], layout, {
+                            responsive: true,
+                            displayModeBar: true,
+                            displaylogo: false
+                        });
+                    }
+                } else {
+                    // Show alternative comparison if no results
+                    await loadAlternativeComparison();
+                }
+            } catch (error) {
+                console.error('Error loading comparison:', error);
+                await loadAlternativeComparison();
+            }
+        }
+        
+        // Load alternative comparison metrics
+        async function loadAlternativeComparison() {
+            const resultsDiv = document.getElementById('comparison-results');
+            if (!resultsDiv) {
+                console.error('comparison-results div not found');
+                return;
+            }
+            
+            try {
+                const res = await fetch('/api/models/comparison/alternative');
+                
+                if (!res.ok) {
+                    throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+                }
+                
+                const data = await res.json();
+                
+                if (data.error || !data.comparisons || data.comparisons.length === 0) {
+                    resultsDiv.innerHTML = `
+                        <div class="alert alert-info">
+                            <strong>Model comparison information is being computed...</strong><br>
+                            <small class="text-muted">No comparison data available. Please ensure models are fitted.</small>
+                        </div>`;
+                    return;
+                }
+                
+                // Create visualizations
+                let html = '<h5 class="mb-3">Model Comparison Dashboard</h5>';
+                
+                // Comparison table
+                html += `
+                    <div class="table-responsive mb-4">
+                        <table class="table table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Model</th>
+                                    <th>Parameters</th>
+                                    <th>R²</th>
+                                    <th>Mean R̂</th>
+                                    <th>Max R̂</th>
+                                    <th>% Converged</th>
+                                </tr>
+                            </thead>
+                            <tbody>`;
+                
+                data.comparisons.forEach(model => {
+                    const rhatStatus = model.mean_rhat && model.mean_rhat < 1.01 ? 'success' : 'warning';
+                    html += `
+                        <tr>
+                            <td><strong>${model.model}</strong></td>
+                            <td>${model.n_parameters || 'N/A'}</td>
+                            <td>${model.r_squared ? model.r_squared.toFixed(3) : 'N/A'}</td>
+                            <td>${model.mean_rhat ? model.mean_rhat.toFixed(4) : 'N/A'}</td>
+                            <td>${model.max_rhat ? model.max_rhat.toFixed(4) : 'N/A'}</td>
+                            <td>
+                                <div class="progress" style="height: 20px;">
+                                    <div class="progress-bar bg-${rhatStatus}" role="progressbar" 
+                                         style="width: ${model.converged_percent || 0}%">
+                                        ${model.converged_percent ? model.converged_percent.toFixed(1) : 0}%
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>`;
+                });
+                
+                html += '</tbody></table></div>';
+                
+                // Charts - clean up model names
+                const models = data.comparisons.map(m => {
+                    let name = m.model || 'Unknown Model';
+                    // Remove "Model X: " prefix if present
+                    name = name.replace(/^Model \d+:\s*/, '');
+                    return name;
+                });
+                const nParams = data.comparisons.map(m => m.n_parameters || 0);
+                const rSquared = data.comparisons.map(m => m.r_squared || 0);
+                const convergedPct = data.comparisons.map(m => m.converged_percent || 0);
+                
+                html += '<div class="row">';
+                html += '<div class="col-md-6"><div id="params-chart" class="plot-container mb-3"></div></div>';
+                html += '<div class="col-md-6"><div id="r2-chart" class="plot-container mb-3"></div></div>';
+                html += '</div>';
+                html += '<div class="row">';
+                html += '<div class="col-12"><div id="convergence-chart" class="plot-container"></div></div>';
+                html += '</div>';
+                
+                resultsDiv.innerHTML = html;
+                
+                // Plot 1: Number of Parameters
+                if (window.Plotly) {
+                    Plotly.newPlot('params-chart', [{
+                        x: models,
+                        y: nParams,
+                        type: 'bar',
+                        marker: {color: '#3b82f6'},
+                        text: nParams.map(v => v.toString()),
+                        textposition: 'outside',
+                        name: 'Parameters'
+                    }], {
+                        title: 'Number of Parameters',
+                        xaxis: {title: 'Model', tickangle: -45},
+                        yaxis: {title: 'Count'},
+                        margin: {l: 60, r: 20, t: 50, b: 80}
+                    }, {responsive: true});
+                    
+                    // Plot 2: R-squared (if available)
+                    const validRSquared = rSquared.filter(r => r > 0);
+                    if (validRSquared.length > 0) {
+                        Plotly.newPlot('r2-chart', [{
+                            x: models.filter((_, i) => rSquared[i] > 0),
+                            y: validRSquared,
+                            type: 'bar',
+                            marker: {color: '#10b981'},
+                            text: validRSquared.map(v => v.toFixed(3)),
+                            textposition: 'outside',
+                            name: 'R²'
+                        }], {
+                            title: 'R-squared (Variance Explained)',
+                            xaxis: {title: 'Model', tickangle: -45},
+                            yaxis: {title: 'R²', range: [0, 1]},
+                            margin: {l: 60, r: 20, t: 50, b: 80}
+                        }, {responsive: true});
+                    } else {
+                        document.getElementById('r2-chart').innerHTML = 
+                            '<div class="alert alert-info p-3 text-center">R² not available for these models</div>';
+                    }
+                    
+                    // Plot 3: Convergence percentage
+                    Plotly.newPlot('convergence-chart', [{
+                        x: models,
+                        y: convergedPct,
+                        type: 'bar',
+                        marker: {
+                            color: convergedPct.map(p => p > 90 ? '#10b981' : p > 50 ? '#f59e0b' : '#ef4444')
+                        },
+                        text: convergedPct.map(v => v.toFixed(1) + '%'),
+                        textposition: 'outside',
+                        name: 'Converged Parameters'
+                    }], {
+                        title: 'MCMC Convergence Status (% Parameters with R̂ < 1.01)',
+                        xaxis: {title: 'Model', tickangle: -45},
+                        yaxis: {title: 'Percentage', range: [0, 100]},
+                        margin: {l: 60, r: 20, t: 50, b: 80}
+                    }, {responsive: true});
+                }
+                
+            } catch (error) {
+                document.getElementById('comparison-results').innerHTML = 
+                    `<div class="alert alert-danger">Error loading comparison: ${error.message}</div>`;
+            }
+        }
+        
+        // MCMC Diagnostics removed per user request
+        async function loadDiagnostics() {
+            // Diagnostics section has been removed - do nothing
+            return;
+        }
+        
+        // Initialize on page load
+        // Prediction form handler
+        document.getElementById('prediction-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const algorithm = document.getElementById('pred-algorithm').value;
+            if (!algorithm) {
+                alert('Please select a prediction algorithm');
+                return;
+            }
+            
+            const formData = {
+                algorithm: algorithm,
+                season: parseInt(document.getElementById('pred-season').value),
+                temp: parseFloat(document.getElementById('pred-temp').value),
+                atemp: parseFloat(document.getElementById('pred-atemp').value),
+                hum: parseFloat(document.getElementById('pred-hum').value),
+                windspeed: parseFloat(document.getElementById('pred-windspeed').value),
+                weathersit: parseInt(document.getElementById('pred-weathersit').value),
+                holiday: parseInt(document.getElementById('pred-holiday').value),
+                workingday: parseInt(document.getElementById('pred-workingday').value)
+            };
+            
+            try {
+                // Use selected Bayesian algorithm for predictions
+                const response = await fetch('/api/predict', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    alert(`Error: ${data.error}`);
+                    return;
+                }
+                
+                // Check if response has predictions object or direct fields
+                let predictionData = data;
+                if (data.predictions) {
+                    // Already in correct format
+                    predictionData = data;
+                } else {
+                    // Transform ensemble response to match displayPredictionResults format
+                    predictionData = {
+                        predictions: {
+                            mean: data.mean,
+                            median: data.median,
+                            std: data.std,
+                            ci_lower: data.ci_lower,
+                            ci_upper: data.ci_upper
+                        },
+                        input: formData,
+                        model: data.algorithm || data.model || 'Bayesian Model Averaging',
+                        algorithm: data.algorithm || 'Bayesian Model Averaging',
+                        models_used: data.models_used || [],
+                        bma_weights: data.bma_weights || {}
+                    };
+                }
+                
+                displayPredictionResults(predictionData);
+            } catch (error) {
+                alert(`Error generating prediction: ${error.message}`);
+            }
+        });
+        
+        // Display prediction results
+        function displayPredictionResults(data) {
+            const resultsDiv = document.getElementById('prediction-results');
+            const statsDiv = document.getElementById('prediction-stats');
+            const plotDiv = document.getElementById('prediction-plot');
+            
+            const pred = data.predictions;
+            const input = data.input;
+            
+            // Validate prediction data
+            if (!pred || typeof pred.mean === 'undefined') {
+                alert('Error: Invalid prediction data received. Please try again.');
+                console.error('Prediction data:', data);
+                return;
+            }
+            
+            // Ensure CI fields are available (API returns ci_lower/ci_upper, but support both)
+            const ciLower = pred.ci_lower !== undefined ? pred.ci_lower : (pred.q2_5 !== undefined ? pred.q2_5 : 0);
+            const ciUpper = pred.ci_upper !== undefined ? pred.ci_upper : (pred.q97_5 !== undefined ? pred.q97_5 : 0);
+            
+            // Display summary statistics
+            statsDiv.innerHTML = `
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="card bg-primary text-white">
+                            <div class="card-body text-center">
+                                <h6>Mean Prediction</h6>
+                                <h3>${pred.mean.toFixed(0)}</h3>
+                                <small>Bike Rentals</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-info text-white">
+                            <div class="card-body text-center">
+                                <h6>Median Prediction</h6>
+                                <h3>${pred.median.toFixed(0)}</h3>
+                                <small>Bike Rentals</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-success text-white">
+                            <div class="card-body text-center">
+                                <h6>95% Credible Interval</h6>
+                                <h5>${ciLower.toFixed(0)} - ${ciUpper.toFixed(0)}</h5>
+                                <small>Bike Rentals</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-warning text-dark">
+                            <div class="card-body text-center">
+                                <h6>Standard Deviation</h6>
+                                <h3>${pred.std.toFixed(0)}</h3>
+                                <small>Uncertainty</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <p><strong>Input Conditions:</strong> Season ${input.season}, 
+                    Temp: ${input.temp}, Humidity: ${input.hum}, 
+                    Weather: ${input.weathersit}, 
+                    ${input.holiday ? 'Holiday' : 'Not Holiday'}, 
+                    ${input.workingday ? 'Working Day' : 'Not Working Day'}</p>
+                </div>
+            `;
+            
+            // Create distribution plot using summary statistics
+            // Generate a synthetic distribution from summary stats if samples not available
+            if (window.Plotly) {
+                let samples = [];
+                
+                if (pred.samples && pred.samples.length > 0) {
+                    samples = pred.samples;
+                } else {
+                    // Generate synthetic samples from normal distribution using mean and std
+                    // This gives a visualization even if we don't have raw samples
+                    const mean = pred.mean || 0;
+                    const std = pred.std || 1;
+                    const nSamples = 1000;
+                    for (let i = 0; i < nSamples; i++) {
+                        // Box-Muller transform for normal distribution
+                        const u1 = Math.random();
+                        const u2 = Math.random();
+                        const z0 = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+                        samples.push(mean + z0 * std);
+                    }
+                }
+                const trace = {
+                    x: samples,
+                    type: 'histogram',
+                    nbinsx: 30,
+                    marker: {
+                        color: '#3b82f6',
+                        line: {color: '#1e293b', width: 1}
+                    },
+                    name: 'Predictive Distribution'
+                };
+                
+                const layout = {
+                    title: 'Posterior Predictive Distribution',
+                    xaxis: {title: 'Predicted Bike Rentals (count)'},
+                    yaxis: {title: 'Density'},
+                    margin: {l: 60, r: 20, t: 50, b: 50},
+                    shapes: [
+                        {
+                            type: 'line',
+                            x0: pred.mean,
+                            x1: pred.mean,
+                            y0: 0,
+                            y1: 1,
+                            yref: 'paper',
+                            line: {color: '#ef4444', width: 2, dash: 'dash'},
+                            name: 'Mean'
+                        },
+                        {
+                            type: 'rect',
+                            x0: ciLower,
+                            x1: ciUpper,
+                            y0: 0,
+                            y1: 1,
+                            yref: 'paper',
+                            fillcolor: 'rgba(16, 185, 129, 0.2)',
+                            line: {width: 0},
+                            name: '95% CI'
+                        }
+                    ],
+                    annotations: [
+                        {
+                            x: pred.mean,
+                            y: 0.95,
+                            yref: 'paper',
+                            text: `Mean: ${pred.mean.toFixed(0)}`,
+                            showarrow: true,
+                            arrowhead: 2,
+                            ax: 0,
+                            ay: -40,
+                            bgcolor: 'rgba(255,255,255,0.8)'
+                        }
+                    ]
+                };
+                
+                Plotly.newPlot('prediction-plot', [trace], layout, {
+                    responsive: true,
+                    displayModeBar: true
+                });
+            }
+            
+            resultsDiv.style.display = 'block';
+        }
+        
+        // No longer need to populate model dropdown - we use algorithms instead
+        function populatePredictionModels() {
+            // Algorithm dropdown is already populated in HTML
+            // Just verify the select exists
+            const select = document.getElementById('pred-algorithm');
+            if (!select) {
+                console.warn('pred-algorithm select not found');
+            }
+        }
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            loadDataOverview();
+            loadModelStatus().then(() => {
+                populatePredictionModels();
+            });
+        });
+    </script>
+</body>
+</html>
