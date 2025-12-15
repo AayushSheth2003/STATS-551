@@ -11,7 +11,7 @@ The goal is to demonstrate a clear end‑to‑end Bayesian workflow:
 The repository is intentionally kept simple and focused for submission: only the core models and features that are actually used by the app and the write‑up are kept.
 
 ---
-
+ 
 ## High‑level summary
 
 - **Data**: Daily and hourly bike rental counts from `data/day.csv` and `data/hour.csv`.
